@@ -3,8 +3,8 @@ import 'package:english_words/english_words.dart';
 import 'package:provider/provider.dart';
 import 'audio_waveform_viewer.dart';
 import 'opfs_test_widget.dart';
-import 'drive_upload_demo.dart';
 import 'pages/sign_in_demo_page.dart';
+import 'pages/record_demo_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -68,13 +68,15 @@ class _MyHomePageState extends State<MyHomePage> {
       case 0:
         page = GeneratorPage();
       case 1:
-        page = DriveUploadDemo();
+        page = RecordDemoPage();
       case 2:
         page = AudioWaveformViewer();
       case 3:
         page = OPFSTestWidget();
       case 4:
         page = SignInDemo();
+      case 5:
+        page = RecordDemoPage();
       default:
         throw UnimplementedError('no widget for $selectedIndex');
     }
@@ -107,6 +109,10 @@ class _MyHomePageState extends State<MyHomePage> {
                     NavigationRailDestination(
                       icon: Icon(Icons.cloud),
                       label: Text('Drive Demo'),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.mic),
+                      label: Text('Record Demo'),
                     ),
                   ],
                   selectedIndex: selectedIndex,
