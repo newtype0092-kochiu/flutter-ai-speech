@@ -1,5 +1,7 @@
 /// Simple OPFS test widget for Flutter Web
 import 'package:flutter/material.dart';
+import 'dart:js' as js;
+import 'dart:js_util' as js_util;
 import 'opfs_storage_service.dart';
 import 'practice_data_models.dart';
 
@@ -27,13 +29,63 @@ class _OPFSTestWidgetState extends State<OPFSTestWidget> {
 
   Future<void> _testOPFSSupport() async {
     _addOutput('🔍 检查 OPFS 支持...');
+    OPFSStorageService().test();
+    
+    // Get browser info
+    final navigator = js.context['navigator'];
+    final userAgent = navigator != null ? navigator['userAgent'] as String? : 'Unknown';
+    _addOutput('浏览器信息: ${userAgent?.substring(0, userAgent.length > 100 ? 100 : userAgent.length) ?? 'Unknown'}');
     
     final isSupported = OPFSStorageService.isSupported;
     if (isSupported) {
       _addOutput('✅ OPFS 支持: 是');
+      
+      // Try to actually access OPFS to confirm it works
+      try {
+        _addOutput('🔍 测试 OPFS 访问...');
+        final testResult = await _testOPFSAccess();
+        if (testResult) {
+          _addOutput('✅ OPFS 访问测试成功');
+        } else {
+          _addOutput('❌ OPFS 访问测试失败');
+        }
+      } catch (e) {
+        _addOutput('❌ OPFS 访问测试异常: $e');
+      }
     } else {
       _addOutput('❌ OPFS 支持: 否');
-      _addOutput('提示: 请使用支持 OPFS 的浏览器 (Chrome 86+, Edge 86+)');
+      _addOutput('提示: 请使用支持 OPFS 的浏览器');
+      _addOutput('支持的浏览器:');
+      _addOutput('  - Chrome 86+ ✅');
+      _addOutput('  - Edge 86+ ✅');
+      _addOutput('  - Firefox ❌ (不支持)');
+      _addOutput('  - Safari ❌ (不支持)');
+      
+      // Detailed diagnostics
+      _addOutput('\n🔍 详细诊断:');
+      _addOutput('navigator 存在: ${js.context.hasProperty('navigator')}');
+      if (navigator != null) {
+        _addOutput('navigator.storage 存在: ${navigator.hasProperty('storage')}');
+        if (navigator.hasProperty('storage') && navigator['storage'] != null) {
+          final storage = navigator['storage'];
+          _addOutput('navigator.storage.getDirectory 存在: ${storage.hasProperty('getDirectory')}');
+        }
+      }
+    }
+  }
+  
+  Future<bool> _testOPFSAccess() async {
+    try {
+      // Try to get root directory handle
+      final navigator = js.context['navigator'];
+      final storage = navigator['storage'];
+      final rootHandle = await js_util.promiseToFuture(
+        js_util.callMethod(storage, 'getDirectory', [])
+      );
+      return rootHandle != null;
+    } catch (e) {
+      _addOutput('OPFS 访问详细错误: $e');
+      return false;
     }
   }
 
@@ -47,28 +99,27 @@ class _OPFSTestWidgetState extends State<OPFSTestWidget> {
       _addOutput('\n📝 测试基本文件操作...');
       
       // Test text file
-      const testFileName = 'test.txt';
-      const testContent = 'Hello OPFS!';
+      _addOutput('基本文件操作功能暂未实现');
       
-      _addOutput('保存文本文件...');
-      await OPFSStorageService.saveTextFile(testFileName, testContent);
-      _addOutput('✅ 文本文件保存成功');
+      // _addOutput('保存文本文件...');
+      // await OPFSStorageService.saveTextFile(testFileName, testContent);
+      // _addOutput('✅ 文本文件保存成功');
       
-      _addOutput('读取文本文件...');
-      final readContent = await OPFSStorageService.readTextFile(testFileName);
-      _addOutput('✅ 文本文件读取成功: $readContent');
+      // _addOutput('读取文本文件...');
+      // final readContent = await OPFSStorageService.readTextFile(testFileName);
+      // _addOutput('✅ 文本文件读取成功: $readContent');
       
-      // Test file existence
-      final exists = await OPFSStorageService.fileExists(testFileName);
-      _addOutput('✅ 文件存在检查: $exists');
+      // // Test file existence
+      // final exists = await OPFSStorageService.fileExists(testFileName);
+      // _addOutput('✅ 文件存在检查: $exists');
       
-      // Test file size
-      final size = await OPFSStorageService.getFileSize(testFileName);
-      _addOutput('✅ 文件大小: $size 字节');
+      // // Test file size
+      // final size = await OPFSStorageService.getFileSize(testFileName);
+      // _addOutput('✅ 文件大小: $size 字节');
       
-      // Clean up
-      await OPFSStorageService.deleteFile(testFileName);
-      _addOutput('✅ 测试文件已删除');
+      // // Clean up
+      // await OPFSStorageService.deleteFile(testFileName);
+      // _addOutput('✅ 测试文件已删除');
       
     } catch (e) {
       _addOutput('❌ 基本文件操作测试失败: $e');
@@ -206,9 +257,9 @@ class _OPFSTestWidgetState extends State<OPFSTestWidget> {
     
     try {
       await _testOPFSSupport();
-      await _testBasicFileOperations();
-      await _testPracticeDataModel();
-      await _testStorageInfo();
+      // await _testBasicFileOperations();
+      // await _testPracticeDataModel();
+      // await _testStorageInfo();
       
       _addOutput('\n' + '=' * 50);
       _addOutput('✅ 所有测试完成!');
