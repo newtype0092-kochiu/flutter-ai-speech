@@ -2,14 +2,14 @@ import 'dart:async';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart';
 
-/// Google认证服务类
-/// 封装所有与Google登录、授权相关的逻辑
+/// Google Authentication Service Class
+/// Encapsulates all logic related to Google login and authorization
 class GoogleAuthService {
   static final GoogleAuthService _instance = GoogleAuthService._internal();
   factory GoogleAuthService() => _instance;
   GoogleAuthService._internal();
 
-  // 权限范围
+  // Permission scopes
   static const List<String> scopes = [
     DriveApi.driveAppdataScope,
   ];

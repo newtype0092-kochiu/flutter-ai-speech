@@ -1,52 +1,70 @@
 import 'dart:typed_data';
 import 'dart:math';
+import 'dart:async';
 
 class AudioDataProcessor {
   
-  /// Extract audio sample data from byte data
+  /// Extract audio sample data from byte data (legacy method for backward compatibility)
   static Future<List<double>> extractWaveformDataFromBytes(List<int> bytesData) async {
-    try {
-      final bytes = Uint8List.fromList(bytesData);
-      
-      if (bytes.length < 44) {
-        throw Exception('Invalid WAV file: too small');
+    final samples = <double>[];
+    
+    await for (final sample in extractWaveformDataFromBytesStream(bytesData)) {
+      samples.add(sample);
+    }
+    
+    return samples;
+  }
+  
+  /// Stream-based audio sample extraction - more memory efficient
+  static Stream<double> extractWaveformDataFromBytesStream(List<int> bytesData) async* {
+    final bytes = Uint8List.fromList(bytesData);
+    
+    if (bytes.length < 44) {
+      throw Exception('Invalid WAV file: too small');
+    }
+    
+    // Parse WAV file header
+    final header = _parseWavHeader(bytes);
+    if (header == null) {
+      final riffId = bytes.length >= 4 ? String.fromCharCodes(bytes.sublist(0, 4)) : 'N/A';
+      final waveId = bytes.length >= 12 ? String.fromCharCodes(bytes.sublist(8, 12)) : 'N/A';
+      throw Exception('Invalid WAV file format. RIFF: $riffId, WAVE: $waveId, Size: ${bytes.length}');
+    }
+    
+    // Extract audio data portion
+    final dataOffset = header['dataOffset'] as int;
+    final audioData = bytes.sublist(dataOffset);
+    final bitsPerSample = header['bitsPerSample'] as int;
+    final numChannels = header['numChannels'] as int;
+    
+    // Create sample parser based on bit depth
+    Stream<double> sampleStream;
+    switch (bitsPerSample) {
+      case 8:
+        sampleStream = _parse8BitSamplesStream(audioData);
+        break;
+      case 16:
+        sampleStream = _parse16BitSamplesStream(audioData);
+        break;
+      case 24:
+        sampleStream = _parse24BitSamplesStream(audioData);
+        break;
+      case 32:
+        sampleStream = _parse32BitSamplesStream(audioData);
+        break;
+      default:
+        throw Exception('Unsupported bit depth: $bitsPerSample');
+    }
+    
+    // Convert stereo to mono if needed
+    if (numChannels == 2) {
+      await for (final monoSample in _stereoToMonoStream(sampleStream)) {
+        yield monoSample;
       }
-      
-      // Parse WAV file header
-      final header = _parseWavHeader(bytes);
-      if (header == null) {
-        // Try to display header information for debugging
-        final riffId = bytes.length >= 4 ? String.fromCharCodes(bytes.sublist(0, 4)) : 'N/A';
-        final waveId = bytes.length >= 12 ? String.fromCharCodes(bytes.sublist(8, 12)) : 'N/A';
-        throw Exception('Invalid WAV file format. RIFF: $riffId, WAVE: $waveId, Size: ${bytes.length}');
+    } else {
+      await for (final sample in sampleStream) {
+        yield sample;
       }
-      
-      // Extract audio data portion
-      final dataOffset = header['dataOffset'] as int;
-      final audioData = bytes.sublist(dataOffset);
-      
-      // Parse audio samples according to bit depth
-      List<double> samples;
-      if (header['bitsPerSample'] == 16) {
-        samples = _parse16BitSamples(audioData);
-      } else if (header['bitsPerSample'] == 8) {
-        samples = _parse8BitSamples(audioData);
-      } else if (header['bitsPerSample'] == 24) {
-        samples = _parse24BitSamples(audioData);
-      } else if (header['bitsPerSample'] == 32) {
-        samples = _parse32BitSamples(audioData);
-      } else {
-        throw Exception('Unsupported bit depth: ${header['bitsPerSample']}');
-      }
-      
-      // If stereo, convert to mono
-      if (header['numChannels'] == 2) {
-        samples = _stereoToMono(samples);
-      }
-      
-      return samples;
-    } catch (e) {
-      throw Exception('Error processing audio data: $e');
     }
   }
   
@@ -120,34 +138,29 @@ class AudioDataProcessor {
            (bytes[offset + 3] << 24);
   }
   
-  /// Parse 16-bit audio samples
-  static List<double> _parse16BitSamples(Uint8List audioData) {
-    final samples = <double>[];
+  /// Parse 16-bit audio samples as stream
+  static Stream<double> _parse16BitSamplesStream(Uint8List audioData) async* {
     for (int i = 0; i < audioData.length - 1; i += 2) {
       final sample = _readLittleEndian16(audioData, i);
       // Convert to signed 16-bit integer
       final signedSample = sample > 32767 ? sample - 65536 : sample;
       // Normalize to [-1, 1] range
-      samples.add(signedSample / 32767.0);
+      yield signedSample / 32767.0;
     }
-    return samples;
   }
   
-  /// Parse 8-bit audio samples
-  static List<double> _parse8BitSamples(Uint8List audioData) {
-    final samples = <double>[];
+  /// Parse 8-bit audio samples as stream
+  static Stream<double> _parse8BitSamplesStream(Uint8List audioData) async* {
     for (int i = 0; i < audioData.length; i++) {
       // 8-bit audio is usually unsigned, range [0, 255]
       final sample = audioData[i];
       // Convert to signed and normalize to [-1, 1] range
-      samples.add((sample - 128) / 127.0);
+      yield (sample - 128) / 127.0;
     }
-    return samples;
   }
   
-  /// Parse 24-bit audio samples
-  static List<double> _parse24BitSamples(Uint8List audioData) {
-    final samples = <double>[];
+  /// Parse 24-bit audio samples as stream
+  static Stream<double> _parse24BitSamplesStream(Uint8List audioData) async* {
     for (int i = 0; i < audioData.length - 2; i += 3) {
       // Read 24-bit little-endian
       int sample = audioData[i] | 
@@ -160,14 +173,12 @@ class AudioDataProcessor {
       }
       
       // Normalize to [-1, 1] range
-      samples.add(sample / 8388607.0);
+      yield sample / 8388607.0;
     }
-    return samples;
   }
   
-  /// Parse 32-bit audio samples
-  static List<double> _parse32BitSamples(Uint8List audioData) {
-    final samples = <double>[];
+  /// Parse 32-bit audio samples as stream
+  static Stream<double> _parse32BitSamplesStream(Uint8List audioData) async* {
     for (int i = 0; i < audioData.length - 3; i += 4) {
       // Read 32-bit little-endian
       int sample = _readLittleEndian32(audioData, i);
@@ -178,23 +189,26 @@ class AudioDataProcessor {
       }
       
       // Normalize to [-1, 1] range
-      samples.add(sample / 2147483647.0);
+      yield sample / 2147483647.0;
     }
-    return samples;
   }
   
-  /// Convert stereo to mono
-  static List<double> _stereoToMono(List<double> stereoSamples) {
-    final monoSamples = <double>[];
-    for (int i = 0; i < stereoSamples.length - 1; i += 2) {
-      final left = stereoSamples[i];
-      final right = stereoSamples[i + 1];
-      monoSamples.add((left + right) / 2.0);
+  /// Convert stereo to mono stream
+  static Stream<double> _stereoToMonoStream(Stream<double> stereoSamples) async* {
+    double? leftSample;
+    
+    await for (final sample in stereoSamples) {
+      if (leftSample == null) {
+        leftSample = sample; // Store left channel
+      } else {
+        // We have both left and right, yield the average
+        yield (leftSample + sample) / 2.0;
+        leftSample = null; // Reset for next pair
+      }
     }
-    return monoSamples;
   }
   
-  /// Downsample audio data to reduce data points and improve rendering performance
+  /// Downsample audio data to reduce data points and improve rendering performance (legacy)
   static List<double> downsample(List<double> samples, int targetLength) {
     if (samples.length <= targetLength) {
       return samples;
@@ -227,5 +241,111 @@ class AudioDataProcessor {
     }
     
     return downsampledSamples;
+  }
+  
+  /// Stream-based downsampling - more memory efficient
+  static Stream<double> downsampleStream(Stream<double> sampleStream, int targetLength, int originalLength) async* {
+    if (originalLength <= targetLength) {
+      await for (final sample in sampleStream) {
+        yield sample;
+      }
+      return;
+    }
+    
+    final ratio = originalLength / targetLength;
+    final buffer = <double>[];
+    int currentTargetIndex = 0;
+    int sampleIndex = 0;
+    
+    await for (final sample in sampleStream) {
+      final targetIndexForThisSample = (sampleIndex / ratio).floor();
+      
+      if (targetIndexForThisSample == currentTargetIndex) {
+        // This sample belongs to current target bucket
+        buffer.add(sample);
+      } else {
+        // Process previous bucket if we have data
+        if (buffer.isNotEmpty) {
+          yield _calculateRMSFromBuffer(buffer);
+          buffer.clear();
+        }
+        
+        // Move to next target index
+        currentTargetIndex = targetIndexForThisSample;
+        buffer.add(sample);
+      }
+      
+      sampleIndex++;
+    }
+    
+    // Process final bucket
+    if (buffer.isNotEmpty) {
+      yield _calculateRMSFromBuffer(buffer);
+    }
+  }
+  
+  /// Calculate RMS value preserving signal sign
+  static double _calculateRMSFromBuffer(List<double> buffer) {
+    double sum = 0;
+    double signSum = 0;
+    
+    for (final sample in buffer) {
+      sum += sample * sample;
+      signSum += sample.sign;
+    }
+    
+    final rms = sqrt(sum / buffer.length);
+    final avgSign = signSum / buffer.length;
+    return rms * avgSign.sign;
+  }
+  
+  /// Process audio file with streaming and optional chunked callback
+  static Future<List<double>> processAudioFileStream(
+    List<int> bytesData, {
+    int? targetLength,
+    void Function(double sample, int index)? onSample,
+    void Function(List<double> chunk, int startIndex)? onChunk,
+    int chunkSize = 1024,
+  }) async {
+    final samples = <double>[];
+    final chunk = <double>[];
+    int sampleIndex = 0;
+    
+    // Get original sample count for downsampling calculation
+    int? originalLength;
+    if (targetLength != null) {
+      final tempSamples = await extractWaveformDataFromBytes(bytesData);
+      originalLength = tempSamples.length;
+    }
+    
+    Stream<double> stream = extractWaveformDataFromBytesStream(bytesData);
+    
+    // Apply downsampling if requested
+    if (targetLength != null && originalLength != null) {
+      stream = downsampleStream(stream, targetLength, originalLength);
+    }
+    
+    await for (final sample in stream) {
+      samples.add(sample);
+      chunk.add(sample);
+      
+      // Call per-sample callback
+      onSample?.call(sample, sampleIndex);
+      
+      // Call chunk callback when chunk is full
+      if (chunk.length >= chunkSize) {
+        onChunk?.call(List.from(chunk), sampleIndex - chunk.length + 1);
+        chunk.clear();
+      }
+      
+      sampleIndex++;
+    }
+    
+    // Process final chunk if any
+    if (chunk.isNotEmpty) {
+      onChunk?.call(List.from(chunk), sampleIndex - chunk.length);
+    }
+    
+    return samples;
   }
 }

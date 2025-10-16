@@ -5,13 +5,13 @@ import '../services/google_auth_service.dart';
 import '../services/drive_api_service.dart';
 import '../src/web_wrapper.dart' as web;
 
-/// Google Drive AppData Demo 页面
-/// 展示Google登录和Drive文件管理功能
+/// Google Drive AppData Demo Page
+/// Demonstrates Google login and Drive file management functionality
 class SignInDemo extends StatefulWidget {
-  /// 客户端ID，可选
+  /// Client ID, optional
   final String? clientId;
   
-  /// 服务器客户端ID，可选
+  /// Server client ID, optional
   final String? serverClientId;
   
   const SignInDemo({
@@ -24,11 +24,11 @@ class SignInDemo extends StatefulWidget {
   State createState() => _SignInDemoState();
 }
 
-class _SignInDemoState extends State<SignInDemo> {
+class _SignInDemoState extends State<SignInDemo> with AutomaticKeepAliveClientMixin {
   final GoogleAuthService _authService = GoogleAuthService();
   final DriveApiService _driveService = DriveApiService();
   
-  // 当前状态
+  // Current state
   AuthState _authState = const AuthState(
     isAuthorized: false,
     errorMessage: '',
@@ -45,30 +45,33 @@ class _SignInDemoState extends State<SignInDemo> {
   StreamSubscription<DriveApiState>? _driveSubscription;
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   void initState() {
     super.initState();
     
-    // 监听认证状态变化
+    // Listen to authentication state changes
     _authSubscription = _authService.authStateStream.listen((state) {
       final wasAuthorized = _authState.isAuthorized;
       setState(() {
         _authState = state;
       });
       
-      // 如果刚刚完成授权，自动加载文件列表
+      // If just completed authorization, automatically load file list
       if (state.isAuthorized && !wasAuthorized) {
         _driveService.listFiles();
       }
     });
     
-    // 监听Drive API状态变化
+    // Listen to Drive API state changes
     _driveSubscription = _driveService.driveStateStream.listen((state) {
       setState(() {
         _driveState = state;
       });
     });
 
-    // 初始化认证服务
+    // Initialize authentication service
     _authService.initialize(
       clientId: widget.clientId,
       serverClientId: widget.serverClientId,
@@ -93,7 +96,7 @@ class _SignInDemoState extends State<SignInDemo> {
           else
             ..._buildUnauthenticatedWidgets(),
           
-          // 显示认证错误
+          // Show authentication errors
           if (_authState.errorMessage.isNotEmpty) 
             Container(
               padding: const EdgeInsets.all(10),
@@ -109,7 +112,7 @@ class _SignInDemoState extends State<SignInDemo> {
               ),
             ),
             
-          // 显示Drive API错误
+          // Show Drive API errors
           if (_driveState.errorMessage.isNotEmpty) 
             Container(
               padding: const EdgeInsets.all(10),
@@ -265,6 +268,7 @@ class _SignInDemoState extends State<SignInDemo> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
       appBar: AppBar(title: const Text('Google Drive AppData Demo')),
       body: _buildBody(),

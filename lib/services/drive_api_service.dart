@@ -4,8 +4,8 @@ import 'package:googleapis/drive/v3.dart';
 import 'package:extension_google_sign_in_as_googleapis_auth/extension_google_sign_in_as_googleapis_auth.dart';
 import 'google_auth_service.dart';
 
-/// Drive API服务类
-/// 封装所有与Google Drive API相关的操作
+/// Drive API Service Class
+/// Encapsulates all operations related to Google Drive API
 class DriveApiService {
   static final DriveApiService _instance = DriveApiService._internal();
   factory DriveApiService() => _instance;
@@ -13,12 +13,12 @@ class DriveApiService {
 
   final GoogleAuthService _authService = GoogleAuthService();
 
-  // 状态变量
+  // State variables
   List<File> _fileList = [];
   bool _isLoadingFiles = false;
   String _errorMessage = '';
 
-  // 状态变化流控制器
+  // State change stream controller
   final StreamController<DriveApiState> _stateController = StreamController<DriveApiState>.broadcast();
 
   // Getters
@@ -27,7 +27,7 @@ class DriveApiService {
   String get errorMessage => _errorMessage;
   Stream<DriveApiState> get driveStateStream => _stateController.stream;
 
-  /// 获取已认证的Drive API客户端
+  /// Get authenticated Drive API client
   Future<DriveApi?> _getDriveApi() async {
     final authorization = await _authService.getAuthorizationForScopes();
     if (authorization == null) {
@@ -42,10 +42,10 @@ class DriveApiService {
     return DriveApi(authenticatedClient);
   }
 
-  /// 上传文件到appdata文件夹
+  /// Upload file to appdata folder
   Future<void> uploadFile() async {
     try {
-      _setError(''); // 清除之前的错误
+      _setError(''); // Clear previous errors
       
       final driveApi = await _getDriveApi();
       if (driveApi == null) return;
@@ -89,6 +89,58 @@ class DriveApiService {
     } catch (e) {
       _setError('Error uploading file: $e');
       print('Error uploading file: $e');
+    }
+  }
+
+  /// 上传音频文件到appdata文件夹
+  Future<String?> uploadAudioMetadata(String originalFileName, List<int> audioBytes) async {
+    try {
+      _setError(''); // 清除之前的错误
+      
+      final driveApi = await _getDriveApi();
+      if (driveApi == null) return null;
+
+      // 直接上传音频文件本身，而不是元数据
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      
+      // 使用原始文件名，但添加时间戳避免冲突
+      final audioFileName = originalFileName.replaceAll(RegExp(r'[^\w\-_\.]'), '_');
+      final finalFileName = '${timestamp}_$audioFileName';
+
+      // 创建文件元数据
+      final fileMetadata = File()
+        ..name = finalFileName
+        ..parents = ['appDataFolder'] // 指定上传到 appdata 文件夹
+        ..description = 'Audio recording uploaded at ${DateTime.now().toIso8601String()}';
+
+      // 创建媒体内容 - 直接使用音频字节数据
+      final media = Media(
+        Stream.fromIterable([audioBytes]),
+        audioBytes.length,
+        contentType: 'audio/wav', // 设置正确的 MIME 类型
+      );
+
+      // 上传文件
+      final uploadedFile = await driveApi.files.create(
+        fileMetadata,
+        uploadMedia: media,
+      );
+
+      print('Audio file uploaded successfully!');
+      print('File ID: ${uploadedFile.id}');
+      print('File Name: ${uploadedFile.name}');
+      print('File Size: ${uploadedFile.size} bytes');
+      print('Content Type: audio/wav');
+
+      // 上传成功后刷新文件列表
+      await listFiles();
+
+      return uploadedFile.id;
+      
+    } catch (e) {
+      _setError('Error uploading audio file: $e');
+      print('Error uploading audio file: $e');
+      rethrow;
     }
   }
 

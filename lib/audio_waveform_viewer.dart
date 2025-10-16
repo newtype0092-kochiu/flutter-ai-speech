@@ -120,20 +120,27 @@ class _AudioWaveformViewerState extends State<AudioWaveformViewer> {
     }
   }
 
-  /// Process audio byte data
+  /// Process audio byte data using streaming approach
   Future<void> _processAudioBytes(List<int> bytes, String fileName) async {
     try {
-      // Extract waveform data
-      final samples = await AudioDataProcessor.extractWaveformDataFromBytes(bytes);
-      
-      // Downsample to appropriate number to improve performance
-      final downsampledSamples = AudioDataProcessor.downsample(samples, 1000);
-      
-      // Load annotations (could be from real alignment data or test data)
+      // Load annotations first
       final annotations = _loadAnnotationsForFile(fileName);
+      
+      // Use the new streaming API with progress callback
+      final samples = await AudioDataProcessor.processAudioFileStream(
+        bytes,
+        targetLength: 1000, // Downsample to 1000 points for performance
+        onChunk: (chunk, startIndex) {
+          // Optional: Update UI with processing progress
+          // This could show a progress bar during processing
+          if (mounted && startIndex % 100 == 0) {
+            print('Processing chunk starting at index $startIndex');
+          }
+        },
+      );
 
       setState(() {
-        _waveformData = downsampledSamples;
+        _waveformData = samples;
         _annotations = annotations;
         _errorMessage = null;
       });
