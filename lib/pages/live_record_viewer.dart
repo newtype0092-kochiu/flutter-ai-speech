@@ -1,11 +1,13 @@
 import 'dart:async';
-import 'dart:typed_data';
+import 'dart:math';
+// dart:io not used to keep web compatibility
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:record/record.dart';
+// import 'package:path_provider/path_provider.dart';
+import 'package:audioplayers/audioplayers.dart';
 
-import '../audio_data_processor.dart';
 import '../waveform_widget.dart';
 
 /// Live recording waveform viewer.
@@ -20,10 +22,14 @@ class LiveRecordViewer extends StatefulWidget {
 
 class _LiveRecordViewerState extends State<LiveRecordViewer> {
   final AudioRecorder _recorder = AudioRecorder();
-  StreamSubscription<Uint8List>? _sub;
+  StreamSubscription<Amplitude>? _sub;
   List<double> _waveform = [];
   bool _isRecording = false;
   String? _error;
+  String? _lastFilePath;
+  final AudioPlayer _player = AudioPlayer();
+  final ScrollController _scrollController = ScrollController();
+  double? _lastAmpValue;
 
   // we accumulate a sliding buffer of samples (downsampled) for display
   final int _maxPoints = 1000;
@@ -32,6 +38,7 @@ class _LiveRecordViewerState extends State<LiveRecordViewer> {
   void dispose() {
     _sub?.cancel();
     _recorder.dispose();
+    _player.dispose();
     super.dispose();
   }
 
@@ -49,24 +56,42 @@ class _LiveRecordViewerState extends State<LiveRecordViewer> {
     }
 
     try {
-      final stream = await _recorder.startStream(
-        const RecordConfig(encoder: AudioEncoder.pcm16bits),
+      // start recording to a file (recorder will decide path on web/native)
+      final filename = 'rec_${DateTime.now().millisecondsSinceEpoch}.wav';
+      await _recorder.start(
+        const RecordConfig(encoder: AudioEncoder.wav),
+        path: filename,
       );
 
-      // stream will be returned when stream recording is supported
-
-      // subscribe to byte chunks
-      _sub = stream.listen((chunk) {
-        _handleChunk(chunk);
+      // also subscribe to amplitude changes for lightweight waveform
+      _sub = _recorder.onAmplitudeChanged(const Duration(milliseconds: 100)).listen((amp) {
+        // amp.current is dBFS-like; convert to linear approx for display
+          final linear = dbfsToLinear(amp.current);
+          _lastAmpValue = amp.current;
+          setState(() {
+            _waveform.add(linear);
+            if (_waveform.length > _maxPoints) {
+              _waveform.removeRange(0, _waveform.length - _maxPoints);
+            }
+          });
+          // auto-scroll to end next frame
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (_scrollController.hasClients) {
+              _scrollController.animateTo(
+                _scrollController.position.maxScrollExtent,
+                duration: const Duration(milliseconds: 120),
+                curve: Curves.easeOut,
+              );
+            }
+          });
       }, onError: (e) {
-        setState(() => _error = '流错误: $e');
-      }, onDone: () {
-        // stream ended
+        setState(() => _error = 'Amplitude stream error: $e');
       });
 
       setState(() {
         _isRecording = true;
         _waveform = [];
+        _lastFilePath = null;
       });
     } catch (e) {
       setState(() {
@@ -77,7 +102,9 @@ class _LiveRecordViewerState extends State<LiveRecordViewer> {
 
   Future<void> _stopRecording() async {
     try {
-      await _recorder.stop();
+      final path = await _recorder.stop();
+      // update last file path if returned
+      if (path != null) _lastFilePath = path;
     } catch (_) {}
     await _sub?.cancel();
     _sub = null;
@@ -86,28 +113,30 @@ class _LiveRecordViewerState extends State<LiveRecordViewer> {
     });
   }
 
-  void _handleChunk(Uint8List chunk) {
-    // Convert little-endian PCM16 bytes to normalized [-1,1] samples
-    final samples = <double>[];
-    for (int i = 0; i + 1 < chunk.length; i += 2) {
-      final low = chunk[i];
-      final high = chunk[i + 1];
-      final v = low | (high << 8);
-      final signed = v > 32767 ? v - 65536 : v;
-      samples.add(signed / 32767.0);
+  // Playback the last recorded file
+  Future<void> _playLast() async {
+    if (_lastFilePath == null) return;
+    await _player.stop();
+    if (kIsWeb) {
+      // web: path is a blob URL
+      await _player.play(UrlSource(_lastFilePath!));
+    } else {
+      await _player.play(DeviceFileSource(_lastFilePath!));
     }
-
-    // Downsample the samples to a reasonable number for display
-    final down = AudioDataProcessor.downsample(samples, 100);
-
-    // Append to waveform with sliding window
-    setState(() {
-      _waveform.addAll(down);
-      if (_waveform.length > _maxPoints) {
-        _waveform.removeRange(0, _waveform.length - _maxPoints);
-      }
-    });
   }
+
+  double dbfsToLinear(double db) {
+    // Convert dBFS to linear amplitude using standard formula:
+    // linear = 10^(db/20). db is negative (e.g., -70 dB) -> tiny linear value.
+    // Amplify slightly for visualization and clamp to [0,1].
+    final d = db.isFinite ? db : -100.0;
+    final linear = pow(10.0, d / 20.0) as double; // in (0,1]
+    // amplify small signals for visualization
+    final amplified = (linear * 8.0).clamp(0.0, 1.0);
+    return amplified;
+  }
+
+  // previously used when consuming raw PCM stream; now we use amplitude stream
 
   @override
   Widget build(BuildContext context) {
@@ -142,6 +171,11 @@ class _LiveRecordViewerState extends State<LiveRecordViewer> {
                       style: const TextStyle(color: Colors.red),
                     ),
                   ),
+                const SizedBox(width: 8),
+                if (_lastAmpValue != null)
+                  Text('Amp: ${_lastAmpValue!.toStringAsFixed(2)}'),
+                const SizedBox(width: 12),
+                Text('Points: ${_waveform.length}'),
               ],
             ),
             const SizedBox(height: 16),
@@ -155,14 +189,41 @@ class _LiveRecordViewerState extends State<LiveRecordViewer> {
                 ),
                 child: _waveform.isEmpty
                     ? const Center(child: Text('No live waveform'))
-                    : InteractiveWaveformWidget(
-                        waveformData: _waveform,
-                        height: double.infinity,
-                        style: WaveformStyle.line,
-                        progress: 0.0,
-                        showAnnotations: false,
+                    : SingleChildScrollView(
+                        controller: _scrollController,
+                        scrollDirection: Axis.horizontal,
+                        child: SizedBox(
+                          // increase horizontal scale so points are spaced out
+                          width: max(400, _waveform.length * 4.0),
+                          height: 220,
+                          child: InteractiveWaveformWidget(
+                            // convert amplitude (0..1) to bipolar display (-1..1)
+                            waveformData: _waveform.map((v) => (v * 2.0) - 1.0).toList(),
+                            height: 220,
+                            style: WaveformStyle.line,
+                            progress: 0.0,
+                            showAnnotations: false,
+                            waveColor: Colors.red,
+                            strokeWidth: 2.0,
+                          ),
+                        ),
                       ),
               ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                ElevatedButton.icon(
+                  onPressed: _lastFilePath != null && !_isRecording ? _playLast : null,
+                  icon: const Icon(Icons.play_arrow),
+                  label: const Text('Play Last'),
+                ),
+                const SizedBox(width: 12),
+                if (_lastFilePath != null)
+                  Expanded(child: Text('Saved: ${_lastFilePath!.split(RegExp(r"[\\/]")).last}'))
+                else
+                  const Expanded(child: Text('No recording yet')),
+              ],
             ),
           ],
         ),
@@ -170,3 +231,5 @@ class _LiveRecordViewerState extends State<LiveRecordViewer> {
     );
   }
 }
+
+
