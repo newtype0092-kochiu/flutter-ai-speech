@@ -20,6 +20,8 @@ class LiveRecordViewer extends StatefulWidget {
   State<LiveRecordViewer> createState() => _LiveRecordViewerState();
 }
 
+// Using InteractiveWaveformWidget from waveform_widget.dart for mirrored rendering
+
 class _LiveRecordViewerState extends State<LiveRecordViewer> {
   final AudioRecorder _recorder = AudioRecorder();
   StreamSubscription<Amplitude>? _sub;
@@ -196,16 +198,15 @@ class _LiveRecordViewerState extends State<LiveRecordViewer> {
                           // increase horizontal scale so points are spaced out
                           width: max(400, _waveform.length * 4.0),
                           height: 220,
-                          child: InteractiveWaveformWidget(
-                            // convert amplitude (0..1) to bipolar display (-1..1)
-                            waveformData: _waveform.map((v) => (v * 2.0) - 1.0).toList(),
-                            height: 220,
-                            style: WaveformStyle.line,
-                            progress: 0.0,
-                            showAnnotations: false,
-                            waveColor: Colors.red,
-                            strokeWidth: 2.0,
-                          ),
+                            child: InteractiveWaveformWidget(
+                              waveformData: List<double>.from(_waveform),
+                              height: 220,
+                              style: WaveformStyle.line,
+                              progress: 0.0,
+                              showAnnotations: false,
+                              waveColor: Colors.blue,
+                              strokeWidth: 1.0,
+                            ),
                         ),
                       ),
               ),
