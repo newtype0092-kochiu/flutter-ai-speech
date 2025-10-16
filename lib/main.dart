@@ -5,6 +5,7 @@ import 'audio_waveform_viewer.dart';
 import 'opfs_test_widget.dart';
 import 'pages/sign_in_demo_page.dart';
 import 'pages/record_demo_page.dart';
+import 'pages/live_record_viewer.dart';
 
 void main() {
   runApp(const MyApp());
@@ -76,7 +77,7 @@ class _MyHomePageState extends State<MyHomePage> {
       case 4:
         page = SignInDemo();
       case 5:
-        page = RecordDemoPage();
+        page = const LiveRecordViewer();
       default:
         throw UnimplementedError('no widget for $selectedIndex');
     }
