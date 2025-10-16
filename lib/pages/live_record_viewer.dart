@@ -1,12 +1,9 @@
 import 'dart:async';
 import 'dart:math';
-import 'dart:typed_data';
-// dart:io not used to keep web compatibility
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:record/record.dart';
-// import 'package:path_provider/path_provider.dart';
 import 'package:audioplayers/audioplayers.dart';
 
 // Web-specific imports (using modern web APIs)

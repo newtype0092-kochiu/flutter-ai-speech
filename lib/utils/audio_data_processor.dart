@@ -42,16 +42,12 @@ class AudioDataProcessor {
     switch (bitsPerSample) {
       case 8:
         sampleStream = _parse8BitSamplesStream(audioData);
-        break;
       case 16:
         sampleStream = _parse16BitSamplesStream(audioData);
-        break;
       case 24:
         sampleStream = _parse24BitSamplesStream(audioData);
-        break;
       case 32:
         sampleStream = _parse32BitSamplesStream(audioData);
-        break;
       default:
         throw Exception('Unsupported bit depth: $bitsPerSample');
     }

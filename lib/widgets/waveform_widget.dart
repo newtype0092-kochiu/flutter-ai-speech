@@ -101,13 +101,10 @@ class WaveformPainter extends CustomPainter {
     switch (style) {
       case WaveformStyle.line:
         _drawLineWaveform(canvas, size);
-        break;
       case WaveformStyle.bars:
         _drawBarWaveform(canvas, size);
-        break;
       case WaveformStyle.filled:
         _drawFilledWaveform(canvas, size);
-        break;
     }
   }
 
@@ -220,7 +217,7 @@ class WaveformPainter extends CustomPainter {
   /// Draw filled style waveform
   void _drawFilledWaveform(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = waveColor.withOpacity(0.7)
+      ..color = waveColor.withValues(alpha: 0.7)
       ..style = PaintingStyle.fill;
 
     final path = Path();
@@ -423,13 +420,10 @@ class InteractiveWaveformPainter extends CustomPainter {
     switch (style) {
       case WaveformStyle.line:
         _drawLineWaveformWithColor(canvas, size, color);
-        break;
       case WaveformStyle.bars:
         _drawBarWaveformWithColor(canvas, size, color);
-        break;
       case WaveformStyle.filled:
         _drawFilledWaveformWithColor(canvas, size, color);
-        break;
     }
   }
 
@@ -492,7 +486,7 @@ class InteractiveWaveformPainter extends CustomPainter {
 
   void _drawFilledWaveformWithColor(Canvas canvas, Size size, Color color) {
     final paint = Paint()
-      ..color = color.withOpacity(0.7)
+      ..color = color.withValues(alpha: 0.7)
       ..style = PaintingStyle.fill;
 
     final path = Path();
@@ -571,11 +565,11 @@ class AnnotationPainter extends CustomPainter {
 
     // Alternating colors for different annotations
     final colors = [
-      Colors.blue.withOpacity(0.2),
-      Colors.green.withOpacity(0.2),
-      Colors.orange.withOpacity(0.2),
-      Colors.purple.withOpacity(0.2),
-      Colors.red.withOpacity(0.2),
+      Colors.blue.withValues(alpha: 0.2),
+      Colors.green.withValues(alpha: 0.2),
+      Colors.orange.withValues(alpha: 0.2),
+      Colors.purple.withValues(alpha: 0.2),
+      Colors.red.withValues(alpha: 0.2),
     ];
     final color = colors[index % colors.length];
 
@@ -591,7 +585,7 @@ class AnnotationPainter extends CustomPainter {
 
     // Draw border
     final borderPaint = Paint()
-      ..color = color.withOpacity(0.8)
+      ..color = color.withValues(alpha: 0.8)
       ..strokeWidth = 1.0
       ..style = PaintingStyle.stroke;
 

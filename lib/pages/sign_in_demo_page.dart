@@ -102,7 +102,7 @@ class _SignInDemoState extends State<SignInDemo> with AutomaticKeepAliveClientMi
               padding: const EdgeInsets.all(10),
               margin: const EdgeInsets.only(top: 10),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
+                color: Colors.red.withValues(alpha: 0.1),
                 border: Border.all(color: Colors.red),
                 borderRadius: BorderRadius.circular(5),
               ),
@@ -118,7 +118,7 @@ class _SignInDemoState extends State<SignInDemo> with AutomaticKeepAliveClientMi
               padding: const EdgeInsets.all(10),
               margin: const EdgeInsets.only(top: 10),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
+                color: Colors.red.withValues(alpha: 0.1),
                 border: Border.all(color: Colors.red),
                 borderRadius: BorderRadius.circular(5),
               ),

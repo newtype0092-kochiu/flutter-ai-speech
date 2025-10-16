@@ -1,5 +1,57 @@
 # Flutter AI Speech Project Guidelines
 
+## AI Assistant Interaction Rules
+
+### File Modification Protocol
+**CRITICAL: Always ask for permission before modifying files**
+
+1. **When user asks a question or reports an issue**:
+   - ✅ First, EXPLAIN what the problem is
+   - ✅ Then, DESCRIBE how to fix it
+   - ✅ Show example code if helpful
+   - ❌ DO NOT modify files immediately
+   - ✅ WAIT for explicit confirmation from user
+
+2. **Confirmation phrases that authorize modification**:
+   - User says: "fix it", "apply the fix", "do it", "yes", "proceed"
+   - Only then should you use file modification tools
+
+3. **When user wants to understand something**:
+   - Questions like "what is this error?", "how does this work?", "what does this mean?"
+   - These are INFORMATION requests, NOT modification requests
+   - Provide explanation only, do not modify code
+
+4. **Example workflow**:
+   ```
+   User: "PROBLEMS window shows an error"
+   
+   AI Response:
+   "This is a [error type] warning.
+   
+   Problem: [explain the issue]
+   
+   Fix: [describe the solution]
+   
+   Code example: [show the fix]
+   
+   Would you like me to apply this fix?"
+   
+   [WAIT FOR USER CONFIRMATION]
+   ```
+
+5. **Exceptions** (when you can modify without asking):
+   - User explicitly says "refactor the code"
+   - User says "create a new file with..."
+   - User provides very clear modification instructions
+   - Even then, confirm if the change is significant
+
+### Summary
+- Default behavior: **ASK FIRST**
+- User can always undo with Cmd+Z if needed
+- Respect user's control over their codebase
+
+---
+
 ## Language & Internationalization
 - All code comments, UI text, and error messages MUST be in English
 - Use clear, descriptive variable and function names
@@ -73,6 +125,41 @@
 - Log detailed errors to console for debugging
 - Implement retry logic for network failures
 - Validate file IDs and response data
+
+## Dependency Management
+
+### Adding Dependencies
+- **ALWAYS use `flutter pub add` or `dart pub add` commands** to add new packages
+- ❌ **NEVER directly modify `pubspec.yaml`** to add dependencies
+- ✅ Use: `flutter pub add package_name` or `flutter pub add package_name:^version`
+- This ensures:
+  - Correct version resolution
+  - Proper dependency constraints
+  - Automatic `pubspec.lock` updates
+  - Consistent formatting
+
+### Examples
+```bash
+# Add a regular dependency
+flutter pub add http
+
+# Add a specific version
+flutter pub add http:^1.5.0
+
+# Add a dev dependency
+flutter pub add --dev flutter_lints
+
+# Add multiple packages at once
+flutter pub add http provider flutter_bloc
+```
+
+### When to Manually Edit pubspec.yaml
+- Only edit manually for:
+  - Changing SDK constraints
+  - Modifying existing package versions
+  - Adding comments or descriptions
+  - Configuring flutter assets or fonts
+- Even then, prefer using pub commands when available
 
 ## Code Organization
 

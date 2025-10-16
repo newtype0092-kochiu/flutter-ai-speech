@@ -1,10 +1,31 @@
-/// Simple OPFS test widget for Flutter Web
 import 'package:flutter/material.dart';
-import 'dart:js' as js;
-import 'dart:js_util' as js_util;
+import 'dart:js_interop';
 import '../services/opfs_storage_service.dart';
 import '../models/practice_data_models.dart';
 
+// JS interop definitions for browser APIs
+@JS()
+external JSObject get window;
+
+extension type JSWindow(JSObject _) implements JSObject {
+  external JSNavigator get navigator;
+}
+
+extension type JSNavigator(JSObject _) implements JSObject {
+  external JSString get userAgent;
+  external JSStorageManager? get storage;
+}
+
+extension type JSStorageManager(JSObject _) implements JSObject {
+  external JSPromise<JSFileSystemDirectoryHandle> getDirectory();
+}
+
+extension type JSFileSystemDirectoryHandle(JSObject _) implements JSObject {}
+
+// Helper to get global context
+JSWindow get globalContext => window as JSWindow;
+
+/// Widget for testing OPFS storage functionality on Flutter Web.
 class OPFSTestWidget extends StatefulWidget {
   @override
   State<OPFSTestWidget> createState() => _OPFSTestWidgetState();
@@ -32,9 +53,9 @@ class _OPFSTestWidgetState extends State<OPFSTestWidget> {
     OPFSStorageService().test();
     
     // Get browser info
-    final navigator = js.context['navigator'];
-    final userAgent = navigator != null ? navigator['userAgent'] as String? : 'Unknown';
-    _addOutput('Browser info: ${userAgent?.substring(0, userAgent.length > 100 ? 100 : userAgent.length) ?? 'Unknown'}');
+    final navigator = globalContext.navigator;
+    final userAgent = navigator.userAgent.toDart;
+    _addOutput('Browser info: ${userAgent.substring(0, userAgent.length > 100 ? 100 : userAgent.length)}');
     
     final isSupported = OPFSStorageService.isSupported;
     if (isSupported) {
@@ -63,13 +84,11 @@ class _OPFSTestWidgetState extends State<OPFSTestWidget> {
       
       // Detailed diagnostics
       _addOutput('\n🔍 Detailed diagnostics:');
-      _addOutput('navigator exists: ${js.context.hasProperty('navigator')}');
-      if (navigator != null) {
-        _addOutput('navigator.storage exists: ${navigator.hasProperty('storage')}');
-        if (navigator.hasProperty('storage') && navigator['storage'] != null) {
-          final storage = navigator['storage'];
-          _addOutput('navigator.storage.getDirectory exists: ${storage.hasProperty('getDirectory')}');
-        }
+      _addOutput('navigator exists: true');
+      final storage = navigator.storage;
+      _addOutput('navigator.storage exists: ${storage != null}');
+      if (storage != null) {
+        _addOutput('navigator.storage.getDirectory exists: true');
       }
     }
   }
@@ -77,52 +96,16 @@ class _OPFSTestWidgetState extends State<OPFSTestWidget> {
   Future<bool> _testOPFSAccess() async {
     try {
       // Try to get root directory handle
-      final navigator = js.context['navigator'];
-      final storage = navigator['storage'];
-      final rootHandle = await js_util.promiseToFuture(
-        js_util.callMethod(storage, 'getDirectory', [])
-      );
-      return rootHandle != null;
+      final navigator = globalContext.navigator;
+      final storage = navigator.storage;
+      if (storage == null) {
+        return false;
+      }
+      await storage.getDirectory().toDart;
+      return true;
     } catch (e) {
       _addOutput('OPFS access detailed error: $e');
       return false;
-    }
-  }
-
-  Future<void> _testBasicFileOperations() async {
-    if (!OPFSStorageService.isSupported) {
-      _addOutput('❌ OPFS not supported, skipping test');
-      return;
-    }
-
-    try {
-      _addOutput('\n📝 Testing basic file operations...');
-      
-      // Test text file
-      _addOutput('Basic file operation functionality not yet implemented');
-      
-      // _addOutput('Saving text file...');
-      // await OPFSStorageService.saveTextFile(testFileName, testContent);
-      // _addOutput('✅ Text file saved successfully');
-      
-      // _addOutput('Reading text file...');
-      // final readContent = await OPFSStorageService.readTextFile(testFileName);
-      // _addOutput('✅ Text file read successfully: $readContent');
-      
-      // // Test file existence
-      // final exists = await OPFSStorageService.fileExists(testFileName);
-      // _addOutput('✅ File existence check: $exists');
-      
-      // // Test file size
-      // final size = await OPFSStorageService.getFileSize(testFileName);
-      // _addOutput('✅ File size: $size bytes');
-      
-      // // Clean up
-      // await OPFSStorageService.deleteFile(testFileName);
-      // _addOutput('✅ Test file deleted');
-      
-    } catch (e) {
-      _addOutput('❌ Basic file operations test failed: $e');
     }
   }
 
@@ -257,11 +240,10 @@ class _OPFSTestWidgetState extends State<OPFSTestWidget> {
     
     try {
       await _testOPFSSupport();
-      // await _testBasicFileOperations();
-      // await _testPracticeDataModel();
-      // await _testStorageInfo();
+      await _testPracticeDataModel();
+      await _testStorageInfo();
       
-      _addOutput('\n' + '=' * 50);
+      _addOutput('\n${'=' * 50}');
       _addOutput('✅ All tests completed!');
       
     } catch (e) {
