@@ -2,8 +2,8 @@
 import 'package:flutter/material.dart';
 import 'dart:js' as js;
 import 'dart:js_util' as js_util;
-import 'opfs_storage_service.dart';
-import 'practice_data_models.dart';
+import '../services/opfs_storage_service.dart';
+import '../models/practice_data_models.dart';
 
 class OPFSTestWidget extends StatefulWidget {
   @override

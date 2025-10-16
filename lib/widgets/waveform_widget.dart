@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'annotation_data.dart';
+import '../models/annotation_data.dart';
 
 /// Audio waveform rendering component
 class WaveformWidget extends StatelessWidget {

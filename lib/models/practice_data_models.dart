@@ -1,6 +1,6 @@
 /// Data models for speech practice application
 import 'dart:typed_data';
-import 'opfs_storage_service.dart';
+import '../services/opfs_storage_service.dart';
 
 /// Practice group - represents repeated practice of the same content
 class PracticeGroup {

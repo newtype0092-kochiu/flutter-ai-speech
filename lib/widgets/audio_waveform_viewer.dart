@@ -3,9 +3,9 @@ import 'package:file_picker/file_picker.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'dart:async';
 import 'dart:typed_data';
-import 'audio_data_processor.dart';
+import '../utils/audio_data_processor.dart';
 import 'waveform_widget.dart';
-import 'annotation_data.dart';
+import '../models/annotation_data.dart';
 
 /// Complete audio waveform viewer component
 class AudioWaveformViewer extends StatefulWidget {

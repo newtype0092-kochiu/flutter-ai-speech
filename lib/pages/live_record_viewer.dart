@@ -13,7 +13,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'dart:js_interop';
 import 'package:web/web.dart' as web;
 
-import '../waveform_widget.dart';
+import '../widgets/waveform_widget.dart';
 import '../services/google_auth_service.dart';
 import '../services/drive_audio_upload_service.dart';
 

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'audio_waveform_viewer.dart';
-import 'opfs_test_widget.dart';
+import 'widgets/audio_waveform_viewer.dart';
+import 'pages/opfs_test_widget.dart';
 import 'pages/sign_in_demo_page.dart';
 import 'pages/live_record_viewer.dart';
 

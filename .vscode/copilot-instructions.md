@@ -85,10 +85,13 @@
 ### File Structure
 ```
 lib/
-  ├── main.dart (app entry point)
-  ├── pages/ (UI pages)
-  ├── services/ (business logic)
-  └── widgets/ (reusable widgets)
+  ├── main.dart           (app entry point)
+  ├── pages/              (UI pages)
+  ├── widgets/            (reusable widgets)
+  ├── services/           (business logic & external APIs)
+  ├── models/             (data models)
+  ├── utils/              (utility functions & helpers)
+  └── src/                (internal helpers & platform wrappers)
 ```
 
 ### Naming Conventions
